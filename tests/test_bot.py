@@ -21,7 +21,7 @@ class TradingTests(unittest.TestCase):
         self.mt.symbol_info_tick.return_value = NS(ask=3001, bid=3000)
         self.mt.orders_get.return_value = ()
         self.mt.order_send.return_value = NS(retcode=10009, deal=99)
-        self.position = NS(ticket=42, magic=bot.MAGIC, type=0, volume=.1)
+        self.position = NS(ticket=42, magic=bot.MAGIC, type=0, volume=.01)
         self.args = NS(account=123, symbol='XAUUSDm', cycles=1, deviation=20)
 
     def simulate(self, side=0, fail_open=None, fail_close=None):
@@ -37,7 +37,7 @@ class TradingTests(unittest.TestCase):
                 entries += 1
                 if entries == fail_open:
                     return NS(retcode=10030, comment='Rejected')
-                active.append(NS(ticket=entries, magic=bot.MAGIC, type=side, volume=.1))
+                active.append(NS(ticket=entries, magic=bot.MAGIC, type=side, volume=.01))
             return NS(retcode=10009, deal=entries)
         self.mt.positions_get.side_effect = lambda **kwargs: tuple(active)
         self.mt.order_send.side_effect = execute
@@ -52,7 +52,7 @@ class TradingTests(unittest.TestCase):
                     bot.run(self.mt, self.args)
                 calls = [c.args[0] for c in self.mt.order_send.call_args_list]
                 self.assertEqual(len(calls), 20)
-                self.assertTrue(all(c['type'] == side and c['volume'] == .1 for c in calls[:10]))
+                self.assertTrue(all(c['type'] == side and c['volume'] == .01 for c in calls[:10]))
                 self.assertEqual([c['position'] for c in calls[10:]], list(range(1, 11)))
                 self.assertTrue(all(c['type'] == 1-side for c in calls[10:]))
                 sleep.assert_called_once_with(5)

@@ -4,7 +4,7 @@ Uses the last two **completed M1 candles**: a higher close means BUY, a lower
 close means SELL, equal closes mean wait. It checks the signal before every batch.
 This is a simple momentum rule, not a forecast.
 
-Opens **ten separate positions of 0.1 lot each (1.0 lot total)** in the selected
+Opens **ten separate positions of 0.01 lot each (0.10 lot total)** in the selected
 direction, waits five seconds after the tenth fill response, then closes the batch
 and repeats. Orders are submitted sequentially in quick succession, not atomically;
 earlier positions remain open longer than five seconds and closes take time too.
@@ -38,7 +38,7 @@ If multiple terminals are installed, select yours with
 Credentials stay in the logged-in terminal; no password belongs in this code.
 The account argument verifies the connected account, rather than logging in.
 
-0.1 means broker lots, not 0.1 ounce. The bot displays the broker's contract size.
+0.01 means broker lots, not 0.01 ounce. The bot displays the broker's contract size.
 It requires this symbol to have no existing positions or pending orders before
 each cycle. Avoid concurrent trading on that symbol. Rejected, partial, or
 ambiguous orders stop further entries and attempt to close all visible bot positions.

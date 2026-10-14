@@ -1,4 +1,4 @@
-"""Exness MT5: ten directional 0.1-lot trades, hold five seconds, close, repeat (real orders)."""
+"""Exness MT5: ten directional 0.01-lot trades, hold five seconds, close, repeat (real orders)."""
 import argparse
 from decimal import Decimal
 import time
@@ -89,13 +89,13 @@ def run(mt5, args):
     if not mt5.symbol_select(args.symbol, True):
         raise RuntimeError("Symbol unavailable; use its exact Market Watch name, e.g. XAUUSDm")
     info = mt5.symbol_info(args.symbol)
-    lot = Decimal("0.1")
+    lot = Decimal("0.01")
     if info is None or not Decimal(str(info.volume_min)) <= lot <= Decimal(str(info.volume_max)):
-        raise RuntimeError("This symbol does not permit 0.1 lot")
+        raise RuntimeError("This symbol does not permit 0.01 lot")
     if lot % Decimal(str(info.volume_step)):
-        raise RuntimeError("0.1 lot does not match this symbol's volume step")
+        raise RuntimeError("0.01 lot does not match this symbol's volume step")
     filling = filling_mode(mt5, info)
-    print(f"Account {account.login} on {account.server}; {args.symbol}; 0.1 lot; contract size {info.trade_contract_size}", flush=True)
+    print(f"Account {account.login} on {account.server}; {args.symbol}; 0.01 lot; contract size {info.trade_contract_size}", flush=True)
     cycle = 0
     while args.cycles == 0 or cycle < args.cycles:
         # A flat symbol also avoids merging with existing trades on netting accounts.
@@ -110,11 +110,11 @@ def run(mt5, args):
             time.sleep(1)
             continue
         label = "BUY" if side == mt5.ORDER_TYPE_BUY else "SELL"
-        print(f"Batch {cycle + 1}: {label} ten positions of 0.1 lot (1.0 lot total)", flush=True)
+        print(f"Batch {cycle + 1}: {label} ten positions of 0.01 lot (0.10 lot total)", flush=True)
         # Cleanup covers failed/partial opens as well as an interrupted hold.
         try:
             for number in range(10):
-                send(mt5, args.symbol, 0.1, side, filling, args.deviation)
+                send(mt5, args.symbol, 0.01, side, filling, args.deviation)
                 owned = [p for p in positions(mt5, args.symbol) if p.magic == MAGIC]
                 if len(owned) != number + 1 or any(p.type != side for p in owned):
                     raise RuntimeError("Cannot verify batch positions; stopping opening orders")
