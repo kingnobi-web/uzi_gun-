@@ -1,4 +1,4 @@
-"""Exness MT5: buy 0.1 lot, hold five seconds, close, repeat (real orders)."""
+"""Exness MT5: ten directional 0.1-lot trades, hold five seconds, close, repeat (real orders)."""
 import argparse
 from decimal import Decimal
 import time
@@ -45,6 +45,36 @@ def send(mt5, symbol, volume, side, filling, deviation, ticket=None):
     return result
 
 
+def direction(mt5, symbol):
+    # Position 1 skips the currently forming M1 candle.
+    bars = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 1, 2)
+    if bars is None or len(bars) != 2:
+        raise RuntimeError("Need two completed M1 candles; load the symbol chart in MT5")
+    bars = sorted(bars, key=lambda bar: bar["time"])
+    if time.time() - int(bars[-1]["time"]) > 180:
+        raise RuntimeError("M1 candles are stale; check market hours and connection")
+    change = float(bars[-1]["close"]) - float(bars[0]["close"])
+    if change == 0:
+        return None
+    return mt5.ORDER_TYPE_BUY if change > 0 else mt5.ORDER_TYPE_SELL
+
+
+def close_batch(mt5, args, filling):
+    errors = []
+    for p in positions(mt5, args.symbol):
+        if p.magic != MAGIC:
+            continue
+        side = mt5.ORDER_TYPE_SELL if p.type == mt5.ORDER_TYPE_BUY else mt5.ORDER_TYPE_BUY
+        try:
+            send(mt5, args.symbol, p.volume, side, filling, args.deviation, ticket=p.ticket)
+            print(f"CLOSED position {p.ticket}", flush=True)
+        except Exception as error:
+            errors.append(str(error))
+    remaining = [p.ticket for p in positions(mt5, args.symbol) if p.magic == MAGIC]
+    if errors or remaining:
+        raise RuntimeError(f"Batch cleanup incomplete: {errors}; remaining tickets {remaining}; inspect MT5")
+
+
 def run(mt5, args):
     account = mt5.account_info()
     terminal = mt5.terminal_info()
@@ -52,6 +82,8 @@ def run(mt5, args):
         raise RuntimeError("Log into your Exness account in the desktop MT5 terminal")
     if account.login != args.account:
         raise RuntimeError("The logged-in MT5 account does not match --account")
+    if account.margin_mode != mt5.ACCOUNT_MARGIN_MODE_RETAIL_HEDGING:
+        raise RuntimeError("Ten separate positions require an MT5 hedging account")
     if not account.trade_allowed or not account.trade_expert or not terminal.trade_allowed:
         raise RuntimeError("Enable algorithmic trading and external Python trading in MT5")
     if not mt5.symbol_select(args.symbol, True):
@@ -72,27 +104,24 @@ def run(mt5, args):
         pending = mt5.orders_get(symbol=args.symbol)
         if pending is None or pending:
             raise RuntimeError("Cannot establish that this symbol has no pending orders")
-        bought = send(mt5, args.symbol, 0.1, mt5.ORDER_TYPE_BUY, filling, args.deviation)
-        started = time.monotonic()
-        opened = positions(mt5, args.symbol)
-        owned = [p for p in opened if p.magic == MAGIC and p.type == mt5.ORDER_TYPE_BUY]
-        if len(opened) != 1 or len(owned) != 1:
-            raise RuntimeError(f"Cannot identify bought position (deal {bought.deal}); inspect MT5")
-        position = owned[0]
-        print(f"BUY 0.1 lot; position {position.ticket}", flush=True)
+        side = direction(mt5, args.symbol)
+        if side is None:
+            print("M1 closes equal; waiting for direction", flush=True)
+            time.sleep(1)
+            continue
+        label = "BUY" if side == mt5.ORDER_TYPE_BUY else "SELL"
+        print(f"Batch {cycle + 1}: {label} ten positions of 0.1 lot (1.0 lot total)", flush=True)
+        # Cleanup covers failed/partial opens as well as an interrupted hold.
         try:
-            time.sleep(max(0, 5 - (time.monotonic() - started)))
+            for number in range(10):
+                send(mt5, args.symbol, 0.1, side, filling, args.deviation)
+                owned = [p for p in positions(mt5, args.symbol) if p.magic == MAGIC]
+                if len(owned) != number + 1 or any(p.type != side for p in owned):
+                    raise RuntimeError("Cannot verify batch positions; stopping opening orders")
+                print(f"OPENED {number + 1}/10 {label}", flush=True)
+            time.sleep(5)
         finally:
-            # Ctrl+C during the hold still attempts to close this exact position.
-            current = positions(mt5, args.symbol)
-            matches = [p for p in current if p.ticket == position.ticket]
-            if matches:
-                p = matches[0]
-                send(mt5, args.symbol, p.volume, mt5.ORDER_TYPE_SELL, filling,
-                     args.deviation, ticket=p.ticket)
-            if positions(mt5, args.symbol):
-                raise RuntimeError("Position remains open after close; inspect MT5")
-            print(f"CLOSED position {position.ticket}", flush=True)
+            close_batch(mt5, args, filling)
         cycle += 1
 
 
