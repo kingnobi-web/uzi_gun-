@@ -1,4 +1,4 @@
-"""Exness MT5: ten directional 0.01-lot trades, hold five seconds, close, repeat (real orders)."""
+"""Exness MT5: ten directional 0.01-lot trades, profit-target exits, close, repeat (real orders)."""
 import argparse
 from decimal import Decimal
 import time
@@ -32,7 +32,7 @@ def send(mt5, symbol, volume, side, filling, deviation, ticket=None):
         "volume": volume, "type": side,
         "price": tick.ask if side == mt5.ORDER_TYPE_BUY else tick.bid,
         "deviation": deviation, "magic": MAGIC,
-        "comment": "five second bot", "type_time": mt5.ORDER_TIME_GTC,
+        "comment": "momentum batch bot", "type_time": mt5.ORDER_TIME_GTC,
         "type_filling": filling,
     }
     if ticket is not None:
@@ -73,6 +73,33 @@ def close_batch(mt5, args, filling):
     remaining = [p.ticket for p in positions(mt5, args.symbol) if p.magic == MAGIC]
     if errors or remaining:
         raise RuntimeError(f"Batch cleanup incomplete: {errors}; remaining tickets {remaining}; inspect MT5")
+
+
+def wait_for_exit(mt5, args):
+    started = time.monotonic()
+    next_report = started
+    while True:
+        owned = [p for p in positions(mt5, args.symbol) if p.magic == MAGIC]
+        if not owned:
+            return "positions already closed"
+        # Floating profit reflects executable bid/ask; commission is separate.
+        pnl = sum(p.profit + p.swap for p in owned)
+        elapsed = time.monotonic() - started
+        if pnl >= args.profit_target + args.cost_buffer:
+            reason = "profit target"
+        elif pnl <= -args.loss_limit:
+            reason = "loss limit"
+        elif elapsed >= args.max_hold:
+            reason = "time limit"
+        else:
+            reason = None
+        if reason:
+            print(f"EXIT: {reason}; floating P/L including swap {pnl:+.2f}", flush=True)
+            return reason
+        if time.monotonic() >= next_report:
+            print(f"Watching batch: P/L {pnl:+.2f}; elapsed {elapsed:.0f}s", flush=True)
+            next_report = time.monotonic() + 5
+        time.sleep(0.2)
 
 
 def run(mt5, args):
@@ -119,7 +146,7 @@ def run(mt5, args):
                 if len(owned) != number + 1 or any(p.type != side for p in owned):
                     raise RuntimeError("Cannot verify batch positions; stopping opening orders")
                 print(f"OPENED {number + 1}/10 {label}", flush=True)
-            time.sleep(5)
+            wait_for_exit(mt5, args)
         finally:
             close_batch(mt5, args, filling)
         cycle += 1
@@ -132,9 +159,16 @@ def main():
     parser.add_argument("--terminal", help="Path to the Windows terminal64.exe")
     parser.add_argument("--cycles", type=int, default=0, help="0 repeats indefinitely")
     parser.add_argument("--deviation", type=int, default=20, help="Allowed deviation in broker points")
+    parser.add_argument("--profit-target", type=float, default=1.0, help="Batch profit target in account currency")
+    parser.add_argument("--cost-buffer", type=float, default=0.5, help="Extra floating profit to allow for commission/slippage")
+    parser.add_argument("--loss-limit", type=float, default=5.0, help="Close batch at this floating loss")
+    parser.add_argument("--max-hold", type=float, default=60, help="Maximum monitoring seconds after last entry")
     args = parser.parse_args()
     if args.cycles < 0 or args.deviation < 0:
         parser.error("cycles and deviation must be nonnegative")
+    import math
+    if any(not math.isfinite(v) or v <= 0 for v in (args.profit_target, args.loss_limit, args.max_hold)) or not math.isfinite(args.cost_buffer) or args.cost_buffer < 0:
+        parser.error("targets and max-hold must be finite and positive; cost-buffer must be finite and nonnegative")
     import MetaTrader5 as mt5
     initialized = mt5.initialize(args.terminal) if args.terminal else mt5.initialize()
     if not initialized:

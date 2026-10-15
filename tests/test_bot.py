@@ -22,7 +22,7 @@ class TradingTests(unittest.TestCase):
         self.mt.orders_get.return_value = ()
         self.mt.order_send.return_value = NS(retcode=10009, deal=99)
         self.position = NS(ticket=42, magic=bot.MAGIC, type=0, volume=.01)
-        self.args = NS(account=123, symbol='XAUUSDm', cycles=1, deviation=20)
+        self.args = NS(account=123, symbol='XAUUSDm', cycles=1, deviation=20, profit_target=1, cost_buffer=.5, loss_limit=5, max_hold=60)
 
     def simulate(self, side=0, fail_open=None, fail_close=None):
         active = []
@@ -37,7 +37,7 @@ class TradingTests(unittest.TestCase):
                 entries += 1
                 if entries == fail_open:
                     return NS(retcode=10030, comment='Rejected')
-                active.append(NS(ticket=entries, magic=bot.MAGIC, type=side, volume=.01))
+                active.append(NS(ticket=entries, magic=bot.MAGIC, type=side, volume=.01, profit=.2, swap=0))
             return NS(retcode=10009, deal=entries)
         self.mt.positions_get.side_effect = lambda **kwargs: tuple(active)
         self.mt.order_send.side_effect = execute
@@ -55,7 +55,7 @@ class TradingTests(unittest.TestCase):
                 self.assertTrue(all(c['type'] == side and c['volume'] == .01 for c in calls[:10]))
                 self.assertEqual([c['position'] for c in calls[10:]], list(range(1, 11)))
                 self.assertTrue(all(c['type'] == 1-side for c in calls[10:]))
-                sleep.assert_called_once_with(5)
+                sleep.assert_not_called()
                 self.assertFalse(active)
 
     def test_failed_fourth_entry_closes_first_three(self):
@@ -74,7 +74,7 @@ class TradingTests(unittest.TestCase):
 
     def test_interrupt_closes_whole_batch(self):
         active = self.simulate()
-        with patch('bot.direction', return_value=0), patch('bot.time.sleep', side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+        with patch('bot.direction', return_value=0), patch('bot.wait_for_exit', side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
             bot.run(self.mt, self.args)
         self.assertFalse(active)
 
@@ -101,3 +101,19 @@ class TradingTests(unittest.TestCase):
             self.mt.copy_rates_from_pos.return_value = bars
             with self.assertRaises(RuntimeError):
                 bot.direction(self.mt, 'XAUUSDm')
+
+    def test_profit_loss_and_timeout_exits(self):
+        for pnl, elapsed, expected in [(1.5, 0, 'profit target'), (-5, 0, 'loss limit'), (-1, 60, 'time limit')]:
+            self.mt.positions_get.side_effect = None
+            self.mt.positions_get.return_value = (NS(magic=bot.MAGIC, profit=pnl, swap=0),)
+            with patch('bot.time.monotonic', side_effect=[0, elapsed]):
+                self.assertEqual(bot.wait_for_exit(self.mt, self.args), expected)
+
+    def test_small_profit_waits_for_target_and_buffer(self):
+        self.mt.positions_get.side_effect = [
+            (NS(magic=bot.MAGIC, profit=.1, swap=0),),
+            (NS(magic=bot.MAGIC, profit=1.5, swap=0),),
+        ]
+        with patch('bot.time.sleep') as sleep:
+            self.assertEqual(bot.wait_for_exit(self.mt, self.args), 'profit target')
+        sleep.assert_called_once_with(.2)
