@@ -1,0 +1,90 @@
+{
+  "mode": "in_sample_fit",
+  "selected": "depth20-leaf2-confidence0.8",
+  "stats": {
+    "batches": 7044,
+    "positions": 70440,
+    "net_usd": 7242.15,
+    "win_rate": 0.5514,
+    "profit_factor": 1.512,
+    "max_closed_drawdown_usd": 148.92,
+    "all_batches_ten_positions": true
+  },
+  "ranking": [
+    {
+      "name": "depth8-leaf20-confidence0.6",
+      "stats": {
+        "batches": 802,
+        "positions": 8020,
+        "net_usd": -498.92,
+        "win_rate": 0.4601,
+        "profit_factor": 0.807,
+        "max_closed_drawdown_usd": 580.86,
+        "all_batches_ten_positions": true
+      }
+    },
+    {
+      "name": "depth8-leaf20-confidence0.8",
+      "stats": {
+        "batches": 166,
+        "positions": 1660,
+        "net_usd": 53.18,
+        "win_rate": 0.506,
+        "profit_factor": 1.114,
+        "max_closed_drawdown_usd": 112.41,
+        "all_batches_ten_positions": true
+      }
+    },
+    {
+      "name": "depth12-leaf10-confidence0.6",
+      "stats": {
+        "batches": 2811,
+        "positions": 28110,
+        "net_usd": -259.81,
+        "win_rate": 0.4742,
+        "profit_factor": 0.966,
+        "max_closed_drawdown_usd": 765.97,
+        "all_batches_ten_positions": true
+      }
+    },
+    {
+      "name": "depth12-leaf10-confidence0.8",
+      "stats": {
+        "batches": 1414,
+        "positions": 14140,
+        "net_usd": 1001.7,
+        "win_rate": 0.5347,
+        "profit_factor": 1.289,
+        "max_closed_drawdown_usd": 236.31,
+        "all_batches_ten_positions": true
+      }
+    },
+    {
+      "name": "depth20-leaf2-confidence0.6",
+      "stats": {
+        "batches": 8032,
+        "positions": 80320,
+        "net_usd": 5411.05,
+        "win_rate": 0.5222,
+        "profit_factor": 1.31,
+        "max_closed_drawdown_usd": 312.67,
+        "all_batches_ten_positions": true
+      }
+    },
+    {
+      "name": "depth20-leaf2-confidence0.8",
+      "stats": {
+        "batches": 7044,
+        "positions": 70440,
+        "net_usd": 7242.15,
+        "win_rate": 0.5514,
+        "profit_factor": 1.512,
+        "max_closed_drawdown_usd": 148.92,
+        "all_batches_ten_positions": true
+      }
+    }
+  ],
+  "warning": "SELECTED ON TRAINING DATA. NOT VALIDATED. Future prices were labels only; training scores are optimistic.",
+  "feature_samples": 52133,
+  "labeled_samples": 47172
+}

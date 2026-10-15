@@ -242,3 +242,51 @@ in each of the two earlier periods. Later results are reported separately.
 This is previously viewed data and repeated hypothesis testing, so no result
 establishes independent validation. The aggressive simulator's omissions of
 margin, funding, liquidity, financing, and variable latency still apply.
+
+## Deliberately fitted candidate: training results are not validation
+
+A frozen decision-tree research candidate is in `models/research_candidate.json`.
+It was chosen using the SAME Exness tick period used to fit it. Its positive score
+is in-sample and expected to be optimistic; it is not a profitable live bot.
+The deep tree can memorize the training sample. It uses only causal input
+features (past 5/10/30-second moves, past range, tick balance, spread, current
+midprice and UTC clock), but learns labels from prices 30 seconds later. Future
+prices are labels during fitting only, never inputs during evaluation.
+
+Six capacity/confidence combinations were fitted and scored on the training
+sample, selecting the largest training P/L with at least 50 batches. Confidence
+is a tree leaf's class fraction, not a calibrated probability of winning a trade.
+The frozen candidate retains ten 0.01-lot positions per batch, a +5/-5 floating
+exit trigger and 30-second timeout after the last entry. Simulation uses the
+existing sequential 0.1-second order delay, 0.02 adverse price units per fill,
+zero commission and no funding/margin/liquidity/financing/rejection model.
+Thresholds are not guarantees of realized P/L. The existing MT5 bot does not
+load or trade this model.
+
+To test the frozen model on fresh forward ticks:
+
+```powershell
+python -m pip install -r research_requirements.txt
+python export_data.py --symbol XAUUSDm --days 7 --output fresh-data
+python fitted_research.py evaluate fresh-data --model models/research_candidate.json --output fresh-results
+```
+
+Evaluation does not retrain and skips all prices through 30 seconds after the
+training end. This model's training ticks end at approximately October 15, 2026,
+08:28:59 UTC (11:28:59 Kenya time). Overlapping exported history can warm up
+features but is not included in evaluation scores. Use new output directories
+for repeated runs. Share `fresh-results/summary.json` and `batches.csv`, or ZIP the
+fresh data folder for analysis. One short new interval is still insufficient;
+collect results across multiple trading days and conditions. Do not change the
+model, confidence or exit settings after inspecting validation results and then
+reuse those dates as independent validation.
+
+For reproducing the intentionally optimistic training experiment only:
+
+```powershell
+python fitted_research.py fit market-data --output fitted-results
+```
+
+This creates a NEW candidate. It does not replace the committed frozen model.
+Do not run fit on your validation data. Frozen JSON avoids executable pickle
+model loading; evaluate requires NumPy, while fitting also needs scikit-learn.
