@@ -167,3 +167,32 @@ Results are exploratory comparisons, not proof of achievable live execution.
 A positive result on one day with a handful of trades is insufficient for deployment.
 The same candidate must be evaluated on more independent days and fresh Exness
 prices before changing the live bot.
+
+## Aggressive ten-position tick research
+
+```powershell
+python aggressive_research.py market-data --output aggressive-results
+```
+
+Keeps ten 0.01-lot trades per batch. Three fixed directions are evaluated:
+five-second midpoint momentum, its opposite, and the balance of upticks versus
+downticks over ten seconds. Tick balance is quote movement, not actual order flow.
+A batch begins whenever flat and a direction exists, with no one-entry-per-candle
+limit. All ten entries finish before checking +1.50/-5.00 floating thresholds or
+a 60-second timeout. Orders and closes each take at least 0.1 seconds, filling on
+the next available quote after that delay with 0.02 adverse price units of
+slippage. Research runs do not place broker orders.
+
+This intentionally retains the rapid-entry batch format. Zero commission is
+assumed. Exposure is not checked against balance or broker margin; aggregate
+losses are unconstrained research totals, not achievable results for an account
+that would run out of margin. Liquidity, rejected orders, financing, changing
+latency, and floating drawdown are not modeled. Signals warm up for approximately
+ten seconds after a data gap. Segment ends force liquidation at the last quote.
+The split uses the first 70% of available bars and the remainder, but the dataset
+has already been viewed: neither segment is fresh validation.
+
+All three rules lost money in both segments of the supplied Exness sample.
+No aggressive signal was deployed. These tests do not establish that every
+possible scalping rule loses; they reject these particular simple signals under
+the stated execution assumptions.
