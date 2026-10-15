@@ -143,3 +143,27 @@ On the supplied October 2026 sample, all twelve candidates lost money in both
 training and later periods. No candidate was selected or deployed. These negative
 results are evidence against these particular rules on this sample, not proof
 that no profitable strategy can exist.
+
+## Paired Dukascopy minute-candle research
+
+```powershell
+python candle_research.py BID.csv ASK.csv --output candle-results
+```
+
+Supply the original Dukascopy CSVs with `Etc/UTC,Open,High,Low,Close,Volume`
+columns and exactly matching timestamps. This evaluates the same twelve fixed
+research rules without trading or modifying the live bot. Signals use the previous
+completed bid candle and hypothetical entry occurs at the next candle's opening
+bid/ask. The model assumes 0.01 lot, contract size 100, zero commission, and 0.02
+adverse price units of slippage per fill. It assumes hypothetical broker-held
+ATR stop and target orders; this differs from Python polling exits in the live bot.
+
+Minute OHLC cannot reconstruct the sequence of ticks or synchronized bid/ask
+quotes. If stop and target are both touched within a candle, the simulator assumes
+the stop occurred first. Targets fill at the target with adverse slippage; adverse
+opening gaps fill stops at the worse opening price. Timeout uses the next available
+bar open; missing bars can delay execution. No financing or latency is modeled.
+Results are exploratory comparisons, not proof of achievable live execution.
+A positive result on one day with a handful of trades is insufficient for deployment.
+The same candidate must be evaluated on more independent days and fresh Exness
+prices before changing the live bot.
