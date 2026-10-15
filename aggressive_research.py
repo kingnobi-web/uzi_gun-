@@ -10,8 +10,9 @@ RULES = ('momentum_5s', 'reversal_5s', 'tick_balance_10s')
 
 
 class Batch:
-    def __init__(self, rule, latency=.1, slippage=.02):
+    def __init__(self, rule, latency=.1, slippage=.02, profit_target=1.5, loss_limit=5, max_hold=60):
         self.rule, self.latency, self.slippage = rule, latency, slippage
+        self.profit_target, self.loss_limit, self.max_hold = profit_target, loss_limit, max_hold
         self.state='flat';self.entries=[];self.side=0;self.next_action=0
         self.started=0;self.close_index=0;self.realized=0;self.results=[];self.reason=''
         self.check_at=0;self.last_quote=None
@@ -44,7 +45,7 @@ class Batch:
         if self.state=='holding' and t>=self.check_at:
             quote=bid if self.side==1 else ask
             pnl=sum((quote-entry)*self.side for entry in self.entries)
-            reason='profit' if pnl>=1.5 else 'loss' if pnl<=-5 else 'timeout' if t-self.started>=60 else None
+            reason='profit' if pnl>=self.profit_target else 'loss' if pnl<=-self.loss_limit else 'timeout' if t-self.started>=self.max_hold else None
             self.check_at=t+.2
             if reason:
                 self.reason=reason;self.state='closing';self.next_action=t+self.latency

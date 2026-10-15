@@ -196,3 +196,28 @@ All three rules lost money in both segments of the supplied Exness sample.
 No aggressive signal was deployed. These tests do not establish that every
 possible scalping rule loses; they reject these particular simple signals under
 the stated execution assumptions.
+
+## Filtered ten-position research
+
+```powershell
+python gated_research.py market-data --output gated-results
+```
+
+Eighteen predeclared combinations retain ten 0.01-lot positions per burst:
+three tick signals, three entry gates, and +1.50 or +5.00 profit triggers.
+Loss trigger stays -5.00 and monitoring timeout stays 60 seconds after all entries.
+Entry gates require a five-second move at least 3x current spread, a ten-second
+range at least 6x spread plus a five-second move at least 1x spread, or completed
+M1 trend alignment plus a move at least 2x spread. Gates affect new entries only;
+they never block exit processing. The exit profile is configurable in the shared
+research simulator; existing defaults and live bot behavior are unchanged.
+
+First 50% and next 20% of bars define two earlier segments. A candidate needs
+at least 50 batches and positive net P/L in both segments before selection.
+The last 30% is reported separately, with no adjustment of the selected rule.
+All dates were already examined in previous research; this is exploratory reuse,
+not untouched validation. The shared assumptions and limitations of aggressive
+research apply, including fixed order delay, fixed slippage, zero commission,
+and no funding/margin limits. Filtering reduces burst frequency but not position
+count within a burst. All eighteen rules lost money in all three segments on
+the supplied sample; none was selected or deployed.
