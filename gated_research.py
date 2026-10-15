@@ -25,8 +25,8 @@ def candidates():
     return {f'{rule}-{gate}-tp{target:g}':(rule,gate,target) for rule in RULES for gate in GATES for target in TARGETS}
 
 
-def run(path,times,features,start,end,configs,latency=.1,slippage=.02):
-    sims={n:Batch(rule,latency,slippage,profit_target=target) for n,(rule,gate,target) in configs.items()}
+def run(path,times,features,start,end,configs,latency=.1,slippage=.02,loss_limit=5,max_hold=60):
+    sims={n:Batch(rule,latency,slippage,profit_target=target,loss_limit=loss_limit,max_hold=max_hold) for n,(rule,gate,target) in configs.items()}
     recent=deque();balance=0;prev_mid=prev_time=None
     with path.open() as f:
         for row in csv.DictReader(f):
@@ -51,7 +51,7 @@ def run(path,times,features,start,end,configs,latency=.1,slippage=.02):
             for name,sim in sims.items():
                 rule,gate,target=configs[name];side=signals[rule]
                 # Gates control entries only; never block a pending close.
-                enter=warm and t<end-120 and allowed(gate,side,move,span,ask-bid,trend)
+                enter=warm and t<end-max_hold-60 and allowed(gate,side,move,span,ask-bid,trend)
                 sim.tick(t,bid,ask,side,allow_entry=enter)
             prev_mid=mid;prev_time=t
     for sim in sims.values():sim.finish()

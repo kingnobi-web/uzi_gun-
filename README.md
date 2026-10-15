@@ -221,3 +221,24 @@ research apply, including fixed order delay, fixed slippage, zero commission,
 and no funding/margin limits. Filtering reduces burst frequency but not position
 count within a burst. All eighteen rules lost money in all three segments on
 the supplied sample; none was selected or deployed.
+
+## Relaxed-exit research
+
+```powershell
+python relaxed_research.py market-data --output relaxed-results
+```
+
+Tests twelve predefined combinations without changing live orders: the three
+existing tick directions and four exit profiles. Batch target/loss/maximum hold
+are respectively +10/-10/300s, +15/-10/300s, +10/-20/300s, and +20/-10/900s.
+All retain ten 0.01-lot positions, the range-versus-spread entry gate, fixed
+0.1-second order delay, 0.02 price units of slippage per fill, and zero commission.
+These are wider risk settings, not recommendations. No unlimited holds or lot
+escalation are used. The shared simulator's default settings remain unchanged.
+
+The first 50%, next 20%, and last 30% of available bars define consecutive
+research periods. Selection requires at least 50 batches and positive net P/L
+in each of the two earlier periods. Later results are reported separately.
+This is previously viewed data and repeated hypothesis testing, so no result
+establishes independent validation. The aggressive simulator's omissions of
+margin, funding, liquidity, financing, and variable latency still apply.
