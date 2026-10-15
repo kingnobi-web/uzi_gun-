@@ -85,5 +85,14 @@ class BacktestTests(unittest.TestCase):
                 export_data.main()
             metadata=json.loads((out/'metadata.json').read_text())
             self.assertEqual(metadata['ticks'],8)
+            self.assertIn('actual_tick_start_utc', metadata)
+            self.assertIn('actual_tick_end_utc', metadata)
+            self.assertFalse(metadata['requested_start_missing_over_one_day'])
             self.assertNotIn('account',metadata)
             self.assertEqual(len((out/'bars.csv').read_text().splitlines()),202)
+            # A long request returning only recent ticks must flag partial coverage.
+            fake.copy_ticks_range = lambda symbol,start,end,kind: ticks(symbol,start,end,kind) if start.timestamp() >= now-3*86400 else []
+            partial=Path(tmp)/'partial'
+            with patch.dict(sys.modules,{'MetaTrader5':fake}),patch.object(sys,'argv',['export_data.py','--days','7','--output',str(partial)]):
+                export_data.main()
+            self.assertTrue(json.loads((partial/'metadata.json').read_text())['requested_start_missing_over_one_day'])

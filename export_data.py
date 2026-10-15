@@ -38,6 +38,7 @@ def main():
                 if int(b['time']) < int(end.timestamp()):
                     w.writerow([b[k] for k in ['time', 'open', 'high', 'low', 'close']])
         count = 0
+        first_tick = last_tick = None
         cursor = start
         with (out / 'ticks.csv').open('w', newline='') as f:
             w = csv.writer(f); w.writerow(['time_msc', 'bid', 'ask'])
@@ -49,15 +50,28 @@ def main():
                 lo, hi = int(cursor.timestamp()*1000), int(boundary.timestamp()*1000)
                 for t in ticks:
                     if lo <= int(t['time_msc']) < hi and 0 < t['bid'] <= t['ask']:
-                        w.writerow([int(t['time_msc']), t['bid'], t['ask']]); count += 1
+                        tick_time = int(t['time_msc'])
+                        if first_tick is None:
+                            first_tick = tick_time
+                        last_tick = tick_time
+                        w.writerow([tick_time, t['bid'], t['ask']]); count += 1
                 print(f'{boundary.isoformat()}: {count} ticks exported', flush=True)
                 cursor = boundary
         if not count:
             raise RuntimeError('No tick history available')
+        actual_start = datetime.fromtimestamp(first_tick / 1000, timezone.utc)
+        actual_end = datetime.fromtimestamp(last_tick / 1000, timezone.utc)
+        coverage_warning = actual_start - start > timedelta(days=1)
         (out / 'metadata.json').write_text(json.dumps(dict(
             symbol=a.symbol, currency='USD', contract_size=info.trade_contract_size,
             start_utc=start.isoformat(), end_utc=end.isoformat(), ticks=count,
+            actual_tick_start_utc=actual_start.isoformat(),
+            actual_tick_end_utc=actual_end.isoformat(),
+            requested_start_missing_over_one_day=coverage_warning,
             model='linear XAUUSD spot CFD in USD'), indent=2))
+        print(f'ACTUAL tick coverage UTC: {actual_start.isoformat()} to {actual_end.isoformat()}')
+        if coverage_warning:
+            print('WARNING: More than one day of the requested starting period was not returned. This can include closed sessions or unavailable history; do not assume the requested number of days was exported.')
         print(f'Export complete: {out}. Zip this folder and share it for analysis.')
     finally:
         mt.shutdown()
