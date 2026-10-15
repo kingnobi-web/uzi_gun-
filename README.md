@@ -118,3 +118,28 @@ not automatically change its entry or exit rules. It models spread, fixed
 slippage, and commission, but not order latency, rejection, margin, floating
 drawdown, or variable contract conversion. It supports linear XAUUSD CFDs in USD
 only. Synthetic tests validate software behavior, not a trading edge.
+
+## Additional fixed strategy screen
+
+`python research.py market-data --output strategy-screen` evaluates twelve
+predeclared alternatives: six rules with 60- and 300-second holding limits.
+Rules include large-move fades, Bollinger-style band re-entry, simple RSI14
+re-entry (rolling sums, not Wilder smoothing), EMA20/50 pullbacks, trend-aligned
+ten-bar breakouts, and failed channel-break fades. Every candidate uses ATR14
+stops, a 1.5 ATR target, a spread filter, and one 0.01-lot position at a time.
+The total spread plus assumed round-trip slippage must be at most 25% of ATR.
+
+Selection requires at least 30 training trades and positive training net profit.
+If no candidate meets these requirements, the result is **no selection**.
+Later-period results are explicitly exploratory because this dataset has already
+been viewed; do not treat them as fresh out-of-sample confirmation. Trading costs
+assume observed spread, 0.02 adverse price units per fill, and zero commission.
+The optional selected-candidate stress evaluation uses 0.05 slippage per fill.
+This screen requires USD XAUUSD contracts of size 100 and places no orders.
+The same simulation limitations as the earlier backtester apply, including
+inability to close during missing ticks and no margin/latency model.
+
+On the supplied October 2026 sample, all twelve candidates lost money in both
+training and later periods. No candidate was selected or deployed. These negative
+results are evidence against these particular rules on this sample, not proof
+that no profitable strategy can exist.
